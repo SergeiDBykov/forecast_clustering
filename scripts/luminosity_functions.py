@@ -631,7 +631,7 @@ class ClustersXrayLuminosityFunction():
             warn(f'k_correction file is not default, {k_corr_file}')
 
         k_corr_file = np.load(
-            f'{rep_path}scripts/{k_corr_file}')
+            f'{rep_path}scripts/k_correction/{k_corr_file}')
 
         zaxis = k_corr_file['zaxis']
         kTaxis = k_corr_file['kTaxis']
