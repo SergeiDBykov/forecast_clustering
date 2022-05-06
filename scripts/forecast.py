@@ -1585,10 +1585,11 @@ def plot_cl(ell_rebin: np.ndarray,
                          cov_rebin[idx, idx]**0.5, lw=lw, alpha=alpha, label=label, **plot_kwargs)
         ax.set_ylabel(r'$C_\ell\,  {\rm [sr]}$', fontsize=25)
         color = ax.get_lines()[-1].get_color()
-
+        ax.set_xlim()
+        ax.set_ylim()
         if shot_noise != 0:
-            ylim = ax.get_ylim()
-            xlim = ax.get_xlim()
+            #ylim = ax.get_ylim()
+            #xlim = ax.get_xlim()
             ax.axhline(shot_noise, color=color, ls='-.', lw=5, alpha=alpha)
             # ax.set_ylim(ylim)
             # ax.set_xlim(xlim)
