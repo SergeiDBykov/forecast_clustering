@@ -1,3 +1,4 @@
+from dis import dis
 from typing import Callable, Optional, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
@@ -462,7 +463,7 @@ class XrayLuminosityFunction():
             Tuple[np.ndarray, np.ndarray]: zarr and dNdLogL at zarr, units of src/deg^2
         """
         integral = np.zeros(len(Larr))
-        for jj, L in tqdm(enumerate(Larr), desc='dNdL calculating', total=len(Larr)):
+        for jj, L in tqdm(enumerate(Larr), desc='dNdL calculating', total=len(Larr), disable=True):
 
             a = zmin
             b = np.min([self._zmax_(Slim, L)[0], zmax])
@@ -508,7 +509,7 @@ class XrayLuminosityFunction():
 
         integral = np.zeros(len(zarr))
 
-        for jj, z in tqdm(enumerate(zarr), desc='dNdz calculating', total=len(zarr), disable=len(zarr) == 1):
+        for jj, z in tqdm(enumerate(zarr), desc='dNdz calculating', total=len(zarr), disable=True):
 
             a = np.max([np.log10(self._Lmin_(Slim, z)), logLmin])
             b = np.min([np.log10(self._Lmin_(Smax, z)), logLmax])
@@ -751,7 +752,7 @@ class ClustersXrayLuminosityFunction():
         integral = np.zeros(len(zarr))
         a = 1/(1+zarr)
 
-        for jj, z in tqdm(enumerate(zarr), desc='calculating dNdz for clusters', total=len(zarr), disable=False):
+        for jj, z in tqdm(enumerate(zarr), desc='calculating dNdz for clusters', total=len(zarr), disable=True):
 
             a = np.max([self.Mmin(Slim, z)[0], M_min])
             b = np.min([self.Mmin(Smax, z)[0], M_max])
