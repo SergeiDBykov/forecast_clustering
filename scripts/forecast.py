@@ -1,7 +1,7 @@
 from scipy.signal import find_peaks
 from copy import copy
 import glob
-import itertools
+import itertools 
 import os
 import time
 import warnings
@@ -15,7 +15,7 @@ from scipy import sparse
 from scipy import integrate
 from scipy.special import erf
 import pandas as pd
-
+from tqdm import tqdm
 import camb
 import jax_cosmo
 import pyccl as ccl
@@ -29,6 +29,11 @@ sr2degsq = (np.pi/180)**-2
 
 defaulf_cosmo = ccl.Cosmology(Omega_c=0.25, Omega_b=0.05, h=0.7, sigma8=0.8, n_s=0.96,
                               transfer_function='eisenstein_hu', matter_power_spectrum='linear', baryons_power_spectrum='nobaryons')
+
+
+def reduce_list(t):
+    """make a list of lists into a list"""
+    return list(itertools.chain(*t))
 
 
 def is_diag(M):
@@ -174,6 +179,10 @@ def dNdz_photo_z(zarr: np.ndarray, dNdz: np.ndarray,
     return zarr, dNdz_bin, n_obj_bin, dndzname
 
 
+
+########################## Fisher Matrix Class  ##############################
+
+
 class FisherMatrix():
     def __init__(self, par: np.ndarray,
                  par_names: list,
@@ -265,7 +274,17 @@ class FisherMatrix():
                 plt.xlabel('ell')
                 plt.ylabel(f'$dCell/d{name}$')
 
-    def plot_derivatives_2d(self, idx=[0, 1, 2, 3, ]):
+    def plot_derivatives_2d(self, idx: list[int]=[0, 1, 2, 3, ])-> np.ndarray:
+        """
+        plot_derivatives_2d plots derivative but for each C_ij given that wavenumbers ell_rebin are set. 
+
+        Args:
+            idx (list[int], optional): indeces of parameters to pot. Defaults to [0, 1, 2, 3, ].
+
+        Returns:
+            np.ndarray: Jacobian with the appripriate shape: (num_of_cross_spectra, number of modes, number of parameters)
+        """
+
         n_ell = len(self.ell_rebin)
         J_reshape = self.J.reshape(-1, n_ell, len(self.par))
         n_cls = J_reshape.shape[0]
@@ -282,7 +301,19 @@ class FisherMatrix():
             # ax.legend()
         return J_reshape
 
-    def check_derivatives(self, idx=[0, 1, 2, 3, ], rel_threshold=0.3, title=''):
+    def check_derivatives(self, idx: list[int]=[0, 1, 2, 3, ], rel_threshold: float=0.3, title:str=''):
+        """
+        check_derivatives this is the helper function which checks (approximately), if the derivatives are smooth. During tests I found that sometimes derivative might have a false local peak at certain wavenumbers, which is the artifact of cosmoogica calculations. This function tries to find such peaks and inform about them.
+
+        Args:
+            idx (list[int], optional): lits of parameters to check. Defaults to [0, 1, 2, 3, ].
+            rel_threshold (float, optional): threshold to declare a peak detection. Defaults to 0.3.
+            title (str, optional): title of plot. Defaults to ''.
+
+        Returns:
+            bool: whether peaks are detected
+        """
+
         deriv_ok = True
         for par_id in idx:
             deriv = self.J[:, par_id]
@@ -299,7 +330,7 @@ class FisherMatrix():
                 # print(f'{self.par_names[par_id]} has peaks and/or lows')
                 # print(f'peaks: {peaks}')
                 # print(f'lows: {lows}')
-                warning(f'{self.par_names[par_id]} has peaks and/or lows')
+                warnings.warn(f'{self.par_names[par_id]} has peaks and/or lows')
                 fig,  ax = plt.subplots(figsize=(15, 4))
                 ax.plot(deriv, '.-.')
                 ax.plot(peaks, deriv[peaks], "bo")
@@ -340,7 +371,7 @@ class FisherMatrix():
         print((samples[:,4]*np.sqrt((samples[:,0]+ samples[:,1])/0.3)).mean())
         print((samples[:,4]*np.sqrt((samples[:,0]+ samples[:,1])/0.3)).std())
 
-        check that this coincide with the new covariance matrix after the transformation.
+        check that it coincides with the new covariance matrix after the transformation.
         """
 
         Oc, Ob, h, ns, s8 = self.par
@@ -395,7 +426,10 @@ class FisherMatrix():
 def cl_get_ij_from_idx(idx: int, n_bins: int) -> Tuple[int, int]:
     """
     cl_get_ij_from_idx Function to get the i and j indices of bins from the index of the Cl data array
-    My convention is that the first positions are filled by cross-correlation of the first bin with all others (including itself). After that the same is repeated for the second bin, but excluding already-computed correlations like 1x2:
+    My convention is that the first positions are filled by cross-correlation of the first bin with all others (including itself). After that the same is repeated for the second bin, but excluding already-computed correlations like 1x2, for example:
+    for three bins the order is:
+        1x1, 1x2, 1x3, 2x2, 2x3, 3x3
+
     This is useful for creating data vector and covariance matrices
     initial code was:
     index_and_correlation = [(ind, x) for ind, x in enumerate(
@@ -458,9 +492,9 @@ class DensityTracers():
         __init__ class to manage arrays of different LSS tracers with unique redshift distribution and bias factors
 
         Args:
-            zarr_list (list): list of arrays of z values at which dNdz si defined
+            zarr_list (list): list of arrays of z values at which dNdz is defined
             dndz_list (list): list of arrays of dNdz, non-normalized
-            bias_list (Optional[list], optional): List of bias factors at each z. If none, uses unity bias factor. If bias in a list is floats, assigns constant bias to that tracer. Defaults to None.
+            bias_list (Optional[list], optional): List of bias factors at each z. If none, uses unity bias factor. If bias in a list of floats, assigns constant bias to that tracer. Defaults to None.
             set_name (str, optional): name of the set. Defaults to 'Density tracers'.
         """
 
@@ -524,6 +558,9 @@ class DensityTracers():
                                             has_rsd=has_rsd,
                                             dndz=(z, dndz),
                                             bias=(z, bias))
+            #the following line is needed  to get an easy access to the underlying z, dndz, bias and has_rsd variabeles
+            #this is used to transform the ccl tracer object into a CAMB tracer object
+            #see transform_ccl_tracers_to_camb for more details
             tracer.z_arr = z  # type: ignore
             tracer.dndz_arr = dndz  # type: ignore
             tracer.bias_arr = bias  # type: ignore
@@ -536,7 +573,6 @@ class DensityTracers():
 def transform_ccl_tracers_to_camb(tracers: List[ccl.tracers.NumberCountsTracer]):
     """
     Transform CCL number deensity tracers to CAMB tracers.
-    WARNING:o
     I ADDED ARRTIBUTES z_arr, dndz_arr, bias_arr TO ccl.NumberCountsTracer
     in function  make_tracers of class DensityTracers.
 
@@ -555,7 +591,7 @@ def transform_ccl_tracers_to_camb(tracers: List[ccl.tracers.NumberCountsTracer])
 def noise_Cell(src_dens_list: list) -> np.ndarray:
     """
     noise_Cell calculates (constant) noise  power and creates an array of noise ready to be added to Cell array with shape (number of cells, number of ell)
-
+    noise in the cross power spectrum is zero
     Returns:
         np.ndarray: array of noise
     """
@@ -583,9 +619,9 @@ def cov_Cell(cls_rebin: np.ndarray,
 
     Formula:
 
-    Cov(C_ij, C_kl) = normalizatioon factor *(C_il*C_jk + C_ik*C_jl )
+    Cov(C_ij, C_kl) = normalization factor *(C_il*C_jk + C_ik*C_jl )
+    normalization factor = 1/([2ell+1] * fsky * delta_ell)
     auto-spectra is with noise_power = 1/src_dens_ii
-
 
     output shape is (n_cls, n_cls, n_ell), i.e. cov[0,0,0] is the covariance between bin 0 and 0 at ell = ell[0]
     Args:
@@ -619,7 +655,7 @@ def cov_Cell(cls_rebin: np.ndarray,
         j = int(idx + i - i*(2*n_bins-i+1)//2)
         return i, j
 
-    for q in progressbar(range(n_cls), disable=not show_progressbar, desc='calc Covariance'):
+    for q in tqdm(range(n_cls), disable=not show_progressbar, desc='calc Covariance'):
         for w in range(q, n_cls):
             i, j = cl_get_ij_from_idx_loc(q)
             k, l = cl_get_ij_from_idx_loc(w)
@@ -634,11 +670,7 @@ def cov_Cell(cls_rebin: np.ndarray,
             id_il = cl_get_idx_from_ij_loc(i, l)
             id_jk = cl_get_idx_from_ij_loc(j, k)
 
-            # print(f'{i=}, {k=}, {id_ik=}')
-            # print(f'{j=}, {l=}, {id_jl=}')
-            # print(f'{i=}, {l=}, {id_il=}')
-            # print(f'{j=}, {k=}, {id_jk=}')
-            # print(f'{q=}, {w=}')
+
             cls_ik = cls_rebin_noisy[id_ik]
             cls_jl = cls_rebin_noisy[id_jl]
             cls_il = cls_rebin_noisy[id_il]
@@ -704,8 +736,9 @@ def Cell_calculator(l_min: int,
     if delta_i < 0 or delta_i > n_bins:
         delta_i = len(tracers)-1
 
+    #this block is used if one uses CCL to calculate the spectra
     if not use_camb:
-        for jj, (tr1, tr2) in progressbar(enumerate(itertools.combinations_with_replacement(tracers, 2)), disable=not show_progressbar, desc='calculating Cell', total=n_cls):
+        for jj, (tr1, tr2) in tqdm(enumerate(itertools.combinations_with_replacement(tracers, 2)), disable=not show_progressbar, desc='calculating Cell', total=n_cls):
             i, j = cl_get_ij_from_idx(jj, n_bins)
             if np.abs(i-j) > delta_i:
                 cls[jj] = np.zeros_like(ell)
@@ -715,6 +748,7 @@ def Cell_calculator(l_min: int,
                 assert not np.isnan(
                     np.sum(ccl_tmp)), f'NaN in Cell calculated: {ccl_tmp=}'
                 cls[jj] = ccl_tmp
+    #this block is used if one uses CAMB to calculate the spectra
     else:
         cp = camb.model.CAMBparams()
         cp = _set_ccl_cosmo_to_camb_cosmo_(cosmo_ccl, cp)
@@ -735,7 +769,7 @@ def Cell_calculator(l_min: int,
         cls_res = results.get_source_cls_dict(raw_cl=True)
         ell = np.arange(2, l_max+1)
         sigma8_camb = results.get_sigma8_0()
-        norm_s8 = (cosmo_ccl['sigma8'] / sigma8_camb)**2
+        norm_s8 = (cosmo_ccl['sigma8'] / sigma8_camb)**2 #as we use As in camb instead of sigma8, we need to normalize the spectra to match the sigma8 of ccl
         for jj, (tr1, tr2) in enumerate(itertools.combinations_with_replacement(tracers, 2)):
             i, j = cl_get_ij_from_idx(jj, n_bins)
             if np.abs(i-j) > delta_i:
@@ -752,6 +786,7 @@ def Cell_calculator(l_min: int,
 
         ell = ell[ell >= l_min]
 
+    #rebin wevenumbers first
     ell_rebin, _, n_logbin, _ = logrebin_aps(ell=ell,
                                              cls=np.ones_like(
                                                  ell),
@@ -896,7 +931,7 @@ class DataGenerator():
 
         Args:
             fiducial_params (dict): fiducial cosmological parameters used in data generation, including 3d power spectra P(k) parameters, neutrino masses, etc.
-            RUN_NAME (str): name of the run. File should be placed in a folder with the same name. Defaults to 'Fisher_matrices'.
+            RUN_NAME (str): name of the run. File should be placed in a folder with the same name. Defaults to 'Fisher_matrices'. #TODO is is not needed? I do not save anything
             root_path_ (Optional[str], optional): path to folder when different runs lie. If none, uses /inference/ folder. Defaults to None.
             set_name (str, optional): name of the set of data to generate. Defaults to 'tracers'. Good to name it as the tracer type: AGN or Clusters
 
@@ -968,7 +1003,7 @@ class DataGenerator():
             raise ValueError(
                 f'xlf must be a XrayLuminosityFunction instance, got {type(xlf)=}')
 
-        # make more objects per deg^2. Useful to XLF which do not quite match source counts from real data or for different tests
+        # make more objects per deg^2. Useful to XLF which do not quite match source counts from real data or for different tests,  e.g. AGN, or for testing small sample sizes
         dNdz = dNdz * density_multiplier
         self.zarrs = []
         self.dndz_arrs = []
@@ -1035,47 +1070,47 @@ class DataGenerator():
         self.tracers_obj = tracers_obj
         self.src_dens_list = tracers_obj.src_dens_list
 
-    def delta_i_feasibility(self, iis: List[int], delta_i: int):
-        """
-        delta_i_feasibility calculates and plots the Cells for given list of indeces and their cross-correlation with adjacend delta_i. Useful for deciding what delta_i to use.
+    # def delta_i_feasibility(self, iis: List[int], delta_i: int):
+    #     """
+    #     delta_i_feasibility calculates and plots the Cells for given list of indeces and their cross-correlation with adjacend delta_i. Useful for deciding what delta_i to use.
 
-        Args:
-            iis (List[int]): List of idx to check. idx = 1 -> i,j = 0,1, etc
-            delta_i (int): maximum bin to correlate given idx with.
-        """
-        for ii in iis:
-            tracers = []
-            src_dens_list = []
-            for di in range(delta_i+1):
-                tracers.append(self.tracers[ii+di])
-                src_dens_list.append(self.src_dens_list[ii+di])
-            tmp = Cell_calculator(
-                l_min=10, l_max=520,
-                cosmo_ccl=self._cosmo_fid,
-                tracers=tracers,
-                log_bins=26,
-                delta_i=delta_i,
-                use_camb=True,
-                camb_llimber=100,
-            )
-            noise_power = noise_Cell(src_dens_list)
+    #     Args:
+    #         iis (List[int]): List of idx to check. idx = 1 -> i,j = 0,1, etc
+    #         delta_i (int): maximum bin to correlate given idx with.
+    #     """
+    #     for ii in iis:
+    #         tracers = []
+    #         src_dens_list = []
+    #         for di in range(delta_i+1):
+    #             tracers.append(self.tracers[ii+di])
+    #             src_dens_list.append(self.src_dens_list[ii+di])
+    #         tmp = Cell_calculator(
+    #             l_min=10, l_max=520,
+    #             cosmo_ccl=self._cosmo_fid,
+    #             tracers=tracers,
+    #             log_bins=26,
+    #             delta_i=delta_i,
+    #             use_camb=True,
+    #             camb_llimber=100,
+    #         )
+    #         noise_power = noise_Cell(src_dens_list)
 
-            ell_rebin, cls_rebin, n_logbin, _ = tmp
-            cov_rebin = cov_Cell(cls_rebin=cls_rebin, ell_rebin=ell_rebin,
-                                 noise_power=noise_power, fsky=0.7, n_logbin=n_logbin)
+    #         ell_rebin, cls_rebin, n_logbin, _ = tmp
+    #         cov_rebin = cov_Cell(cls_rebin=cls_rebin, ell_rebin=ell_rebin,
+    #                              noise_power=noise_power, fsky=0.7, n_logbin=n_logbin)
 
-            fig,  [ax1, ax2] = plt.subplots(2, figsize=(8, 8))  # type: ignore
-            for di in range(delta_i+1):
-                plot_cl(ell_rebin, n_logbin, cls_rebin, cov_rebin,
-                        i=0, j=di, n_bins=delta_i+1,
-                        ax=ax1, alpha=0.7/(di*1.5+1))
-                plot_cl(ell_rebin, n_logbin, cls_rebin, cov_rebin,
-                        i=0, j=di, n_bins=delta_i+1, plot_snr=True,
-                        ax=ax2, alpha=0.7)
+    #         fig,  [ax1, ax2] = plt.subplots(2, figsize=(8, 8))  # type: ignore
+    #         for di in range(delta_i+1):
+    #             plot_cl(ell_rebin, n_logbin, cls_rebin, cov_rebin,
+    #                     i=0, j=di, n_bins=delta_i+1,
+    #                     ax=ax1, alpha=0.7/(di*1.5+1))
+    #             plot_cl(ell_rebin, n_logbin, cls_rebin, cov_rebin,
+    #                     i=0, j=di, n_bins=delta_i+1, plot_snr=True,
+    #                     ax=ax2, alpha=0.7)
 
-            ax1.legend([f'{ii}x{ii+di}' for di in range(delta_i+1)])
-            ax2.legend([f'{ii}x{ii+di}' for di in range(delta_i+1)])
-            # return cls_rebin
+    #         ax1.legend([f'{ii}x{ii+di}' for di in range(delta_i+1)])
+    #         ax2.legend([f'{ii}x{ii+di}' for di in range(delta_i+1)])
+    #         # return cls_rebin
 
     def gen_Cell(self,
                  l_min: int, l_max: int,
@@ -1158,7 +1193,7 @@ class DataGenerator():
                       self.fiducial_params['sigma8'],
                       ]
         par_names = ['Omega_c', 'Omega_b', 'h',  'n_s', 'sigma_8']
-        # it is important to have sigma8 as the last cosmoloogical parameter. This is because I want to calculate derivatives with respect to sigma8 analytically.
+        # it is important to have sigma8 as the last cosmological parameter. This is because I want to calculate derivatives with respect to sigma8 analytically.
 
         if self.use_weighed_bias:
             _ = [par_vector.append(bias) for bias in self.weighed_bias_arrs]
@@ -1176,7 +1211,18 @@ class DataGenerator():
 
         assert self.n_cls == cls_rebin.shape[0], f'{self.n_cls=} not equal to {cls_rebin.shape[0]=}. {self.n_bins=}'
 
-    def Cell_mean(self, params):
+    def Cell_mean(self, params: np.ndarray) -> Tuple[np.ndarray, np.ndarray, list]:
+        """
+        Cell_mean this is a function which, given cosmological parameters, calculates the output vector of data Cell with parameters exactly the same as the parameters of self.gen_Cell().
+
+        Args:
+            params (np.ndarray): cosmoloigical parameters.
+
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, list]: Cells data vector, Cells data vector flattened, list of indices of ignored cells. 
+        """
+
         if not hasattr(self, 'l_min'):
             raise AttributeError(
                 'Cells has not been generated yet and power spectrum parameters are not set')
@@ -1227,6 +1273,9 @@ class DataGenerator():
         return cls_rebin, cls_rebin_lkl, ignored_idx
 
     def plot_cls(self, iis: Optional[List[int]] = None, di: Optional[int] = None,  **pltkwargs):
+        """ plots cls of the datagenerator
+        iis: indices of cells to plot.
+        di: delta_i."""
         if di is None:
             di = self.delta_i
         else:
@@ -1245,6 +1294,7 @@ class DataGenerator():
                     pass
 
     def plot_dndzs(self, **pltkwargs):
+        """ plots dndzs of the datagenerator"""
         self.tracers_obj.plot_dNdz(
             bin_left_edges=self.bin_left_edges, **pltkwargs)
 
@@ -1276,16 +1326,17 @@ class DataGenerator():
 
         return data_cov_inv
 
-    def get_Fisher_matrix(self, jac_step: float = 5e-4, jac_order=2,  name_postfix: str = '') -> List[FisherMatrix]:
+    def get_Fisher_matrix(self, jac_step: float = 5e-4, jac_order=2,  name_postfix: str = '') -> list[FisherMatrix]:
         """
-        get_Fisher_matrix function to calculate expected curvature of likelihood (Fisher matrix) assuming CONSTANT covariance of data and gaussian statistics for a given DataGenerator object.
+        get_Fisher_matrix function to calculate expected curvature of likelihood (Fisher matrix) assuming CONSTANT (!) covariance of data and gaussian statistics for a given DataGenerator object.
 
         Args:
             jac_step (float, optional): Step in ffinite difference calculation of derivative of theory vector w.r.t. cosmological parameters. Defaults to 1e-3.
+            jac_order (int, optional): Order of the derivative. Defaults to 2. (two point stencil)
             name_postfix (str, optional): Postfix to add to the name of the Fisher matrix. Defaults to ''.
 
         Returns:
-            FisherMatrix: FisherMatrix instance
+            FisherMatrix: list of FisherMatrix objects.
         """
         data_cov_inv = self.invert_cov()
 
@@ -1429,7 +1480,6 @@ class DataGenerator():
                plot_cell: bool = True,
                remove_ignored_cells: bool = True,
                calc_cl: bool = True,
-               # make_cobaya_input: bool = False,
                ):
         """
         invoke invoke this object to create data and prepare for the fitting
@@ -1484,370 +1534,41 @@ class DataGenerator():
         return None
 
 
-# class DataGenerator_flux_resolved(DataGenerator):
 
-#     def gen_dNdz(self, flux_bin_left_edges: np.ndarray,
-#                  xlf: XrayLuminosityFunction,
-#                  density_multiplier: float,):
 
-#         flux_bin_left_edges = np.array(flux_bin_left_edges)
-#         self.labels = [f'bin_{i}' for i in range(
-#             len(flux_bin_left_edges))][0:-1]
-#         self.bin_left_edges = flux_bin_left_edges
-#         self.xlf = xlf
-
-#         self.zarrs = []
-#         self.dndz_arrs = []
-#         self.bias_arrs = []
-#         for ii in range(len(self.labels)):
-#             smin = flux_bin_left_edges[ii]
-#             smax = flux_bin_left_edges[ii+1]
-
-#             if type(xlf) == ClustersXrayLuminosityFunction:
-#                 zarr_phz, dNdz_phz = xlf.dNdz(
-#                     Slim=smin, Smax=smax, zarr=np.linspace(0.001, 1.5, 700))
-#                 _, b_eff = xlf.b_eff(zarr=zarr_phz, Slim=smin, Smax=smax)
-#             elif type(xlf) == XrayLuminosityFunction:
-#                 zarr_phz, dNdz_phz = xlf.dNdz(
-#                     Slim=smin, Smax=smax, zarr=np.linspace(0.05, 4, 700))
-#                 _, b_eff = xlf.b_eff(zarr=zarr_phz)
-#             else:
-#                 raise ValueError(
-#                     f'xlf must be a XrayLuminosityFunction instance, got {type(xlf)=}')
-#             self.zarrs.append(zarr_phz)
-#             self.dndz_arrs.append(dNdz_phz*density_multiplier)
-#             self.bias_arrs.append(b_eff)
-
-#         return None
-
-#     def make_tracers(self, has_rsd: bool,
-#                      use_weighed_bias: bool) -> None:
-#         """
-#         """
-#         zarrs = self.zarrs
-#         dndz_arrs = self.dndz_arrs
-#         self.has_rsd = has_rsd
-#         assert np.all([zarr == zarrs[0]
-#                        for zarr in zarrs]), 'zarrs are not the same!'
-#         bias_arrs = self.bias_arrs
-
-#         nz_weighted_bias = np.array([np.average(
-#             bz_arr, weights=dndz_arr) for bz_arr, dndz_arr in zip(bias_arrs, dndz_arrs)])
-
-#         self.weighed_bias_arrs = nz_weighted_bias
-#         self.use_weighed_bias = use_weighed_bias
-#         if use_weighed_bias:
-#             # print('USING NZ WEIGHED BIASES INSTEAD OF SINGLE HALO MASS')
-#             bias_arrs = nz_weighted_bias
-#             self.bias_arrs = nz_weighted_bias
-#         else:
-#             pass
-
-#         tracers_obj = DensityTracers(
-#             zarrs, dndz_arrs, bias_list=list(bias_arrs), set_name=self.set_name)
-
-#         # _ = tracers_obj.get_ZData(savepath=f'{self.data_path}')
-#         tracers, _ = tracers_obj.make_tracers(self._cosmo_fid, has_rsd=has_rsd)
-
-#         self.n_bins = len(tracers)
-#         self.n_cls = int((self.n_bins)*(self.n_bins+1)/2)
-
-#         self.tracers = tracers
-#         self.tracers_obj = tracers_obj
-#         self.src_dens_list = tracers_obj.src_dens_list
-
-#     def invoke(self,
-#                flux_bin_left_edges: np.ndarray,
-#                l_min: int = 25, l_max: int = 520, log_bins: int = 31,
-#                xlf: XrayLuminosityFunction = def_agn_xlf,
-#                has_rsd: bool = False,
-#                fsky: float = 0.7,
-#                delta_i: int = -1,
-#                use_camb: bool = False,
-#                camb_llimber: int = 100,
-#                use_weighed_bias=True,
-#                density_multiplier: float = 1,
-#                plot_dndz: bool = True,
-#                plot_cell: bool = True,
-#                remove_ignored_cells: bool = True,
-#                calc_cl: bool = True,
-#                # make_cobaya_input: bool = False,
-#                ):
-#         """
-#         """
-
-#         self.l_min = l_min
-#         self.l_max = l_max
-#         self.log_bins = log_bins
-#         self.fsky = fsky
-#         self.delta_i = delta_i
-
-#         self.gen_dNdz(flux_bin_left_edges=flux_bin_left_edges,
-#                       xlf=xlf,
-#                       density_multiplier=density_multiplier)
-
-#         self.make_tracers(has_rsd=has_rsd,
-#                           use_weighed_bias=use_weighed_bias)
-#         if plot_dndz:
-#             self.plot_dndzs(lw=3, alpha=0.7)
-#         if calc_cl:
-#             self.gen_Cell(l_min=l_min, l_max=l_max, log_bins=log_bins,
-#                           fsky=fsky, delta_i=delta_i, use_camb=use_camb, camb_llimber=camb_llimber,
-#                           remove_ignored_cells=remove_ignored_cells)
-#             if plot_cell:
-#                 self.plot_cls(iis=[0, self.n_bins//2, self.n_bins-1])
-
-#         return None
-
-
-# class DataGenerator_redshift_and_flux_resolved(DataGenerator):
-
-#     def gen_dNdz(self,
-#                  z_bin_left_edges: np.ndarray,
-#                  flux_bin_left_edges: np.ndarray,
-#                  xlf: XrayLuminosityFunction,
-#                  f_fail: float, sigma_0: float,
-#                  density_multiplier: float,):
-#         """
-#         """
-#         flux_bin_left_edges = np.array(flux_bin_left_edges)
-#         z_bin_left_edges = np.array(z_bin_left_edges)
-#         self.flux_bin_left_edges = flux_bin_left_edges
-#         self.z_bin_left_edges = z_bin_left_edges
-#         self.labels = []
-
-#         for flux_i in range(len(flux_bin_left_edges)-1):
-#             for z_i in range(len(z_bin_left_edges)-1):
-#                 self.labels.append(f'binz_{z_i}_binfl{flux_i}')
-
-#         self.xlf = xlf
-
-#         zarrs_per_flux_bin = []
-#         dndz_per_flux_bin = []
-#         b_eff_per_flux_bin = []
-#         for flux_i in range(len(flux_bin_left_edges)-1):
-#             smin = flux_bin_left_edges[flux_i]
-#             smax = flux_bin_left_edges[flux_i+1]
-#             if type(xlf) == ClustersXrayLuminosityFunction:
-#                 zarr, dndz = xlf.dNdz(
-#                     Slim=smin, Smax=smax, zarr=np.linspace(0.001, 1.5, 700))
-#                 _, b_eff = xlf.b_eff(zarr=zarr, Slim=smin, Smax=smax)
-#             elif type(xlf) == XrayLuminosityFunction:
-#                 zarr, dndz = xlf.dNdz(
-#                     Slim=smin, Smax=smax, zarr=np.linspace(0.05, 4, 700))
-#                 _, b_eff = xlf.b_eff(zarr=zarr)
-#             else:
-#                 raise ValueError(
-#                     f'xlf must be a XrayLuminosityFunction instance, got {type(xlf)=}')
-
-#             zarrs_per_flux_bin.append(zarr)
-#             dndz_per_flux_bin.append(dndz*density_multiplier)
-#             b_eff_per_flux_bin.append(b_eff)
-
-#         self.zarrs = []
-#         self.dndz_arrs = []
-#         self.bias_arrs = []
-#         self.mean_photoz = []
-
-#         for flux_i in range(len(flux_bin_left_edges)-1):
-#             dndz_orig = dndz_per_flux_bin[flux_i]
-#             zarr_orig = zarrs_per_flux_bin[flux_i]
-#             b_eff_orig = b_eff_per_flux_bin[flux_i]
-#             for z_i in range(len(z_bin_left_edges)-1):
-#                 zmin = z_bin_left_edges[z_i]
-#                 zmax = z_bin_left_edges[z_i+1]
-
-#                 zarr_phz, dNdz_phz, _, _ = dNdz_photo_z(
-#                     zarr_orig, dndz_orig, zmin=zmin, zmax=zmax, f_fail=f_fail, sigma_0=sigma_0)
-
-#                 self.zarrs.append(zarr_phz)
-#                 self.dndz_arrs.append(dNdz_phz)
-#                 self.bias_arrs.append(b_eff_orig)
-#                 self.mean_photoz.append((zmin+zmax)/2)
-
-#         return None
-
-#     def make_tracers(self, has_rsd: bool,
-#                      use_weighed_bias: bool) -> None:
-#         """
-#         """
-#         zarrs = self.zarrs
-#         dndz_arrs = self.dndz_arrs
-#         self.has_rsd = has_rsd
-#         assert np.all([zarr == zarrs[0]
-#                        for zarr in zarrs]), 'zarrs are not the same!'
-#         bias_arrs = self.bias_arrs
-
-#         nz_weighted_bias = np.array([np.average(
-#             bz_arr, weights=dndz_arr) for bz_arr, dndz_arr in zip(bias_arrs, dndz_arrs)])
-
-#         self.weighed_bias_arrs = nz_weighted_bias
-#         self.use_weighed_bias = use_weighed_bias
-#         if use_weighed_bias:
-#             # print('USING NZ WEIGHED BIASES INSTEAD OF SINGLE HALO MASS')
-#             bias_arrs = nz_weighted_bias
-#             self.bias_arrs = nz_weighted_bias
-#         else:
-#             pass
-
-#         tracers_obj = DensityTracers(
-#             zarrs, dndz_arrs, bias_list=list(bias_arrs), set_name=self.set_name)
-
-#         # _ = tracers_obj.get_ZData(savepath=f'{self.data_path}')
-#         tracers, _ = tracers_obj.make_tracers(self._cosmo_fid, has_rsd=has_rsd)
-
-#         self.n_bins = len(tracers)
-#         self.n_cls = int((self.n_bins)*(self.n_bins+1)/2)
-
-#         self.tracers = tracers
-#         self.tracers_obj = tracers_obj
-#         self.src_dens_list = tracers_obj.src_dens_list
-
-#     def plot_dndzs(self, **pltkwargs):
-#         self.tracers_obj.plot_dNdz(
-#             bin_left_edges=self.z_bin_left_edges, **pltkwargs)
-
-#     def invoke(self,
-#                flux_bin_left_edges: np.ndarray,
-#                z_bin_left_edges: np.ndarray,
-#                f_fail: float, sigma_0: float,
-#                l_min: int = 25, l_max: int = 520, log_bins: int = 31,
-#                xlf: XrayLuminosityFunction = def_agn_xlf,
-#                has_rsd: bool = False,
-#                fsky: float = 0.7,
-#                delta_i: int = -1,
-#                use_camb: bool = False,
-#                camb_llimber: int = 100,
-#                use_weighed_bias=True,
-#                density_multiplier: float = 1,
-#                plot_dndz: bool = True,
-#                plot_cell: bool = True,
-#                remove_ignored_cells: bool = True,
-#                calc_cl: bool = True,
-#                # make_cobaya_input: bool = False,
-#                ):
-#         """
-#         """
-
-#         self.l_min = l_min
-#         self.l_max = l_max
-#         self.log_bins = log_bins
-#         self.fsky = fsky
-#         self.delta_i = delta_i
-
-#         self.gen_dNdz(flux_bin_left_edges=flux_bin_left_edges,
-#                       z_bin_left_edges=z_bin_left_edges,
-#                       f_fail=f_fail, sigma_0=sigma_0,
-#                       xlf=xlf,
-#                       density_multiplier=density_multiplier)
-
-#         self.make_tracers(has_rsd=has_rsd,
-#                           use_weighed_bias=use_weighed_bias)
-#         # if plot_dndz:
-#         #    self.plot_dndzs(lw=3, alpha=0.7)
-#         if calc_cl:
-#             print('start Cell calc for z,F - resolved')
-#             self.gen_Cell(l_min=l_min, l_max=l_max, log_bins=log_bins,
-#                           fsky=fsky, delta_i=delta_i, use_camb=use_camb, camb_llimber=camb_llimber,
-#                           remove_ignored_cells=remove_ignored_cells)
-#             if plot_cell:
-#                 self.plot_cls(iis=[0, self.n_bins//2, self.n_bins-1])
-
-#         return None
-
-
-def five_point_stencil(func, par_fiducial, step_factor=0.01, verbose=True, par_idxs=[0, 1, 2, 3],
-                       ind_steps=None):
-
-    def calc_deriv(func, par_idx):
-        if ind_steps is None:
-            step = par_fiducial[par_idx]*step_factor
-        else:
-            step = ind_steps[par_idx]*par_fiducial[par_idx]
-
-        par_plus = par_fiducial.copy()
-        par_plus[par_idx] += step
-
-        par_minus = par_fiducial.copy()
-        par_minus[par_idx] -= step
-
-        par_plus_plus = par_fiducial.copy()
-        par_plus_plus[par_idx] += 2*step
-
-        par_minus_minus = par_fiducial.copy()
-        par_minus_minus[par_idx] -= 2*step
-
-        f_plus = func(par_plus)
-        f_minus = func(par_minus)
-        f_plus_plus = func(par_plus_plus)
-        f_minus_minus = func(par_minus_minus)
-
-        num = -f_plus_plus + 8*f_plus - 8*f_minus + f_minus_minus
-        den = 12*step
-
-        deriv = num/den
-
-        return deriv
-    my_J = []
-    for par_idx in progressbar(range(len(par_idxs)), disable=not verbose, desc='calcualtion of derivative'):
-        deriv = calc_deriv(func, par_idx)
-        my_J.append(deriv)
-    my_J = np.array(my_J).T
-    return my_J
-
-
-def symmetric_difference_quotient(func, par_fiducial, step_factor=0.01, verbose=True, par_idxs=[0, 1, 2, 3], ind_steps=None):
-
-    def calc_deriv(func, par_idx):
-        if ind_steps is None:
-            step = par_fiducial[par_idx]*step_factor
-        else:
-            step = ind_steps[par_idx]*par_fiducial[par_idx]
-
-        par_plus = par_fiducial.copy()
-        par_plus[par_idx] += step
-
-        par_minus = par_fiducial.copy()
-        par_minus[par_idx] -= step
-
-        return (func(par_plus) - func(par_minus))/(2*step)
-    my_J = []
-    for par_idx in progressbar(range(len(par_idxs)), disable=not verbose, desc='calcualtion of derivative'):
-        deriv = calc_deriv(func, par_idx)
-        my_J.append(deriv)
-    my_J = np.array(my_J).T
-    return my_J
-
-
-def derivative_datagen(datagen, kind='symmetric_difference_quotient', step_factor=0.01, verbose=True, ind_steps=None):
-    par_vector = datagen.par_vector
-    def func(x): return datagen.Cell_mean(x)[1]
-
-    if kind == 'symmetric_difference_quotient':
-        my_J = symmetric_difference_quotient(
-            func, datagen.par_vector, ind_steps=ind_steps, step_factor=step_factor, verbose=verbose,  par_idxs=[0, 1, 2, 3])
-    elif kind == 'five_point_stencil':
-        my_J = five_point_stencil(
-            func, datagen.par_vector, step_factor=step_factor, verbose=verbose,  ind_steps=ind_steps, par_idxs=[0, 1, 2, 3])
-    else:
-        raise ValueError(f'kind {kind} not recognized')
-
-    dCelldsigma8 = np.atleast_2d(2*datagen.cls_rebin_lkl/par_vector[4])
-    my_J = np.vstack((my_J.T, dCelldsigma8)).T
-
-    my_F = np.dot(my_J.T, np.dot(datagen.inv_cov_rebin_lkl, my_J))
-
-    my_F = FisherMatrix(par=datagen.par_vector,
-                        par_names=datagen.par_names,
-                        F=my_F,
-                        name=datagen.set_name+''+kind,
-                        function=func,
-                        J=my_J,
-                        ell_rebin=datagen.ell_rebin,)
-    return my_F
-
-
-def plot_cl(ell_rebin, n_logbin, cls_rebin, cov_rebin, i: int, j: int, n_bins, ax: Optional[plt.Axes] = None, lw=4, alpha=0.6, label='', plot_snr: bool = False, shot_noise: float = 0, addlabel: bool = True, **plot_kwargs):
+def plot_cl(ell_rebin: np.ndarray, 
+            n_logbin: np.ndarray, 
+            cls_rebin: np.ndarray, 
+            cov_rebin: np.ndarray, 
+            i: int, j: int, n_bins: int,
+            ax: Optional[plt.Axes] = None, 
+            lw: float=4, alpha: float=0.6, label:  str='',
+            plot_snr: bool = False, shot_noise: float = 0,
+            addlabel: bool = True,
+            **plot_kwargs):
+    """
+    plot_cl plot the angular power spectrum
+
+    Args:
+        ell_rebin (np.ndarray): input ell bins
+        n_logbin (np.ndarray): number of modes in each bin
+        cls_rebin (np.ndarray): input cls
+        cov_rebin (np.ndarray): input covariance
+        i (int): index to plot cell of, e.g i=1, j=2 plots C_12
+        j (int): as i
+        n_bins (int): number of redshift bins
+        ax (Optional[plt.Axes], optional): axis to plot, if None, axis is created. Defaults to None.
+        lw (float, optional): line width. Defaults to 4.
+        alpha (float, optional): alpha. Defaults to 0.6.
+        label (str, optional): label. Defaults to ''.
+        plot_snr (bool, optional): whether to plot Cell/sigma(Cell). Defaults to False.
+        shot_noise (float, optional): level of shot noise, if 0, does not plot noise. Defaults to 0.
+        addlabel (bool, optional): whether to add label to the  plot. Defaults to True.
+        **plot_kwargs (**kwargs): keyword arguments to pass to plt.plot
+
+    Returns:
+         fig and ax
+    """
 
     idx = cl_get_idx_from_ij(i, j, n_bins)
     if ax is None:
@@ -1882,7 +1603,10 @@ def plot_cl(ell_rebin, n_logbin, cls_rebin, cov_rebin, i: int, j: int, n_bins, a
     return fig, ax
 
 
-def plot_cl_datagen(datagen: DataGenerator, i: int, j: int,  ax: Optional[plt.Axes] = None, lw=4, alpha=0.6, label='', **plot_kwargs):
+def plot_cl_datagen(datagen: DataGenerator, i: int, j: int,  ax: Optional[plt.Axes] = None, lw: float=4, alpha: float=0.6, label:str='', **plot_kwargs):
+    """
+    plot_cl_datagen calls plot_cl on the datagenerator
+    """
     idx = cl_get_idx_from_ij(i, j, datagen.n_bins)
     shot_noise = datagen.noise_power[idx]
     fig, ax = plot_cl(datagen.ell_rebin,
@@ -1895,7 +1619,19 @@ def plot_cl_datagen(datagen: DataGenerator, i: int, j: int,  ax: Optional[plt.Ax
     return fig, ax
 
 
-def fisher_summary(Fs: List[FisherMatrix], par_idx: Optional[List[int]], precision: int = 3, factor=1) -> list:
+def fisher_summary(Fs: List[FisherMatrix], par_idx: Optional[List[int]], precision: int = 3, factor: float=1.0) -> list:
+    """
+    fisher_summary makes a summary of the Fisher matrices, i.e. parameters, their errors, snr, FoM value etc.
+
+    Args:
+        Fs (List[FisherMatrix]): List of Fisher matrices
+        par_idx (Optional[List[int]]): index  of parameters to report. 
+        precision (int, optional): precision . Defaults to 3.
+        factor (float, optional): factor to multiply matrices. Defaults to 1.0.
+
+    Returns:
+        list: _description_
+    """
     list_of_lists = []
     for F in Fs:
         list = []
@@ -1921,7 +1657,28 @@ def fisher_summary(Fs: List[FisherMatrix], par_idx: Optional[List[int]], precisi
     return list_of_lists
 
 
-def compare_fisher_matrices(Fs, title='', filename=None,  names_list=None, factor=1., fsky=None, figsize=10, plot_table=True, precision=3,  **config_kw):
+def compare_fisher_matrices(Fs: list[FisherMatrix], 
+                            title: str='', filename: Optional[str]=None,  
+                            names_list: Optional[list[str]]=None, 
+                            factor: float=1., fsky: Optional[float]=None, 
+                            figsize: float=10, plot_table: bool=True, precision: int=3,  **config_kw):
+    """
+    compare_fisher_matrices plots and compares Fisher matrices.
+
+    Args:
+        Fs (list[FisherMatrix]): list of Fisher matrices
+        title (str, optional): title of the plot. Defaults to ''.
+        filename (Optional[str], optional): name of saved pot. Defaults to None.
+        names_list (Optional[list[str]], optional): list of names of fisher matrices (to replace F.name). Defaults to None.
+        factor (float, optional): factor to multiply matrices. Defaults to 1..
+        fsky (Optional[float], optional): fsky (for title). Defaults to None.
+        figsize (float, optional): plot arg. Defaults to 10.
+        plot_table (bool, optional): whether to plot a parameters table on the plot. Defaults to True.
+        precision (int, optional): precision for table. Defaults to 3.
+
+    Returns:
+        figure and table
+    """
     #factor = fsky/0.658
     par_idx = [0, 1, 2, 3, 4]
     ch_cons = ChainConsumer()
@@ -1996,6 +1753,16 @@ def compare_fisher_matrices(Fs, title='', filename=None,  names_list=None, facto
 
 
 def _set_ccl_cosmo_to_camb_cosmo_(cosmo: ccl.Cosmology, cp):
+    """
+    _set_ccl_cosmo_to_camb_cosmo_ sets camb cosmology to ccl cosmology.
+
+    Args:
+        cosmo (ccl.Cosmology): ccl cosmology
+        cp camb parameterss dictionary
+
+    Returns:
+        camb parameterss dictionary
+    """
     from pyccl import ccllib as lib
     from pyccl.pyutils import check
 
@@ -2134,10 +1901,17 @@ def _set_ccl_cosmo_to_camb_cosmo_(cosmo: ccl.Cosmology, cp):
     return cp
 
 
-def make_cobaya_input(datagen, foldername, F, fix_cov,
-                      filename='info_auto.yaml',):
+def make_cobaya_input(datagen: DataGenerator, foldername: str, F: FisherMatrix, fix_cov: bool,
+                      filename: str='info_auto.yaml',):
     """
-    makes a yaml file for cobaya to use in MCMC fitting.
+    make_cobaya_input makes a yaml file for cobaya to use in MCMC fitting.
+
+    Args:
+        datagen (DataGenerator): data generator object for which you want to run MCMC
+        foldername (str): folder where to save data and all files
+        F (FisherMatrix): Fisher matrix to get the initial covariance matrix
+        fix_cov (bool): whether to fix the covariance matrix or not
+        filename (str, optional): name of cobaya input file. Defaults to 'info_auto.yaml'.
     """
 
     path = path2res_forecast + 'mcmc_inference/' + foldername
@@ -2296,52 +2070,27 @@ mpirun -n 8 cobaya-run -r  info_auto.yaml >> log.txt
         file.close()
 
 
-def load_fisher(datagen_name) -> FisherMatrix:
-    """
-    Loads fisher matrix from file.
-    Args:
-        datagen_name (str): name of datagen object
-
-    Returns:
-        FisherMatrix: fisher matrix object
-    """
-
-    Fname = f"{rep_path}/forecast/mcmc_inference/{datagen_name}/fisher_cov.txt"
-
-    F = np.linalg.inv(np.loadtxt(Fname))
-    par_names = list(np.loadtxt(Fname, dtype=str,
-                                comments=None, max_rows=1)[1:])
-    warnings.warn(
-        f"Parameters of cosmology are default: [0.25, 0.05, 0.7, 0.96, 0.8] ")
-
-    F = FisherMatrix(par=np.array([0.25, 0.05, 0.7, 0.96, 0.8]), par_names=par_names, F=F, name=datagen_name,
-                     function=lambda x: x, J=np.array([1]))
-
-    return F
-
-
 def analyze_chain(SETNAME,
                   burn_in_fraction: float = 0.1,
-                  chain_name: str = None,
-                  figsize=10,
-                  filename=None,
+                  chain_name: Optional[str] = None,
+                  figsize: int=10,
+                  filename: Optional[str]=None,
                   Fs: Optional[List[FisherMatrix]] = None,
                   **config_kw):
     """
     analyze_chains analyzes mcmc chains, compares with fisher matrix, and plots the results.
 
     Args:
-        root_path (str): path to folder of DataGenerator object
+        SETNAME: name of the dataset to analyze, from the folder 'results/data/mcmc_inference/'
         burn_in_fraction (float, optional): Burn in fraction of all samples. Defaults to 0.1.
-        plot (bool, optional): Whether to plot chain. Defaults to True.
-        ignore_bias (bool, optional): Whether to ignore bias parameters in all chains. Defaults to False.
         chain_name (str, optional): If given, retrieves specific chain from the chains/ folder. Else uses all chains. Defaults to None.
-        chain_folder (str, optional): folder to look chains in. Defaults to 'chains'.
-        Fs (List[FisherMatrix], optional): List of fisher matrix objects to plot. Defaults to None.
+        figsize (int, optional): Size of the figure. Defaults to 10.
+        filename (str, optional): If given, saves the figure to the file. Defaults to None.
+        Fs (List[FisherMatrix], optional): List of fisher matrix objects to plot. Defaults to None. Used if you want to compare Fisher forecast and MCMC fit.
 
 
     Returns:
-        Tuple: dataframe with results from all chains all chains separably and chain consumer object
+        Tuple: dataframe with results from all chains, all chains separably, and chain consumer object
     """
     chains_path = f"{rep_path}/forecast/mcmc_inference/{SETNAME}/chains/"
 
