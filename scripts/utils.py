@@ -14,7 +14,7 @@ sr2degsq = 3282.806350011744  # (u.sr).to(u.deg**2) = np.rad2deg(1)**2
 #rep_path = os.path.dirname(os.path.abspath(__file__))+'/'
 rep_path = '/Users/sdbykov/work/forecast_clustering/' #set path to the root folder
 
-path2res_forecast = rep_path + 'result/data/'
+path2res_forecast = rep_path + 'results/data/'
 path2plots = rep_path + 'results/plots/'
 
 

@@ -1474,7 +1474,7 @@ class DataGenerator():
                delta_i: int = -1,
                use_camb: bool = True,
                camb_llimber: int = 100,
-               use_weighed_bias=True,
+               use_weighed_bias: bool=False,
                density_multiplier: float = 1,
                plot_dndz: bool = True,
                plot_cell: bool = True,
@@ -1484,25 +1484,26 @@ class DataGenerator():
         """
         invoke invoke this object to create data and prepare for the fitting
 
+
         Args:
-            bin_left_edges (np.ndarray): see above
-            l_min (int, optional): see above. Defaults to 30.
-            l_max (int, optional): see above. Defaults to 500.
-            log_bins (int, optional): see above. Defaults to 20.
-            f_fail (float, optional): see above. Defaults to 0.1.
-            sigma_0 (float, optional): see above. Defaults to 0.05.
-            xlf (XrayLuminosityFunction, optional): see above. Defaults to def_agn_xlf.
-            slim (float, optional): see above. Defaults to 1e-14.
-            has_rsd (bool, optional): see above. Defaults to False.
-            fsky (float, optional): see above. Defaults to 0.7.
-            delta_i (int, optional): see above. Defaults to -1.
-            use_camb (bool, optional): see above. Defaults to False.
-            camb_llimber (int, optional): see above. Defaults to 100.
-            use_weighed_bias (bool, optional): see above. Defaults to True.
-            density_multiplier (float, optional): see above. Defaults to 1.
-            plot_dndz (bool, optional): see above. Defaults to True.
-            plot_cell (bool, optional): see above. Defaults to True.
-            remove_ignored_cells (bool, optional): Whether to remove cells with ignore flag. Defaults to False.
+            bin_left_edges (np.ndarray): left edges of the bins
+            l_min (int, optional): l min - minumum angular wavenumber \ell. Defaults to 30.
+            l_max (int, optional): l max - maximum angular wavenumber \ell. Defaults to 500.
+            log_bins (int, optional): number of \ell bins. Defaults to 20.
+            f_fail (float, optional): fraction of catastrophic errors in photo-redshift determination . Defaults to 0.1.
+            sigma_0 (float, optional): redshift scatter of photo-z errors: sigma(z)=sigma_0*(1+z). Defaults to 0.05.
+            xlf (XrayLuminosityFunction, optional): X-Ray luminosity function to integrate. Defaults to def_agn_xlf.
+            slim (float, optional): Limiting flux of the survey. Defaults to 1e-14.
+            has_rsd (bool, optional): whether to take into account the redshift-space distortion. Defaults to False.
+            fsky (float, optional): sky fraction observed. Defaults to 0.7.
+            delta_i (int, optional): maximum bin separation (by index) after which cross-correlation is supposed to be zero. if 0, calculates only auto-correlation, if 1, calculates auto-correlation and cross-correlation with adjacent bins. If negative, calculates all correlations Defaults to -1. Ignored spectra would result in zero blocks in the covariance matrix (see Doux 2018).. Defaults to -1.
+            use_camb (bool, optional): Whether to use CAMB.. Defaults to False.
+            camb_llimber (int, optional): l_limber for CAMB. Defaults to 100.
+            use_weighed_bias (bool, optional): whether to use constant b(z) for a bin, with the real b(z) weighted with dndz of a bin. Defaults to False.
+            density_multiplier (float, optional): density multiplier for the xlf. Defaults to 1.
+            plot_dndz (bool, optional): whether to plot dndz of the data generator. Defaults to True.
+            plot_cell (bool, optional): whether to plot Cell of the data generator. Defaults to True.
+            remove_ignored_cells (bool, optional): Whether to remove cells with zero blocks from cov and data. Defaults to True.
             calc_cl (bool, optional): Whether to calculate the power spectra. Defaults to True.
 
 
