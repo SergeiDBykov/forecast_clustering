@@ -1725,7 +1725,7 @@ def compare_fisher_matrices(Fs: list[FisherMatrix],
         fom = np.log10(np.pi/np.sqrt(np.linalg.det(cov)))
         fom = '{:.2f}'.format(fom)
         snrs.append(fom)
-        table = table.append(pd.DataFrame([snrs], columns=par_names_fom))
+        table = pd.concat((table, pd.DataFrame([snrs], columns=par_names_fom))) #table.append(pd.DataFrame([snrs], columns=par_names_fom))
     table.index = [F.name for F in Fs]
     # if not agn_clu_comb:
     # else:

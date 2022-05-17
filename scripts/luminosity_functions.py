@@ -1,4 +1,3 @@
-from dis import dis
 from typing import Callable, Optional, Tuple
 import numpy as np
 import matplotlib.pyplot as plt

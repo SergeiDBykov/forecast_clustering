@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
                 diff = data_agn - data_agn_no_bao
                 icov = np.linalg.inv(cov_agn)  # type: ignore
-                bao_sign_agn = np.sqrt(np.einsum('i, ij, j ->', diff, icov, diff))
+                bao_sign_agn = np.einsum('i, ij, j ->', diff, icov, diff) # this is the SNR^2. extract sqrt to get SNR
                 np.savez(fname_bao_agn,
                         bao_sign=bao_sign_agn)
 
@@ -171,6 +171,6 @@ if __name__ == '__main__':
 
                 diff = data_clu - data_clu_no_bao
                 icov = np.linalg.inv(cov_clu)  # type: ignore
-                bao_sign_clu = np.sqrt(np.einsum('i, ij, j ->', diff, icov, diff))
+                bao_sign_clu =np.einsum('i, ij, j ->', diff, icov, diff) # this is the SNR^2.   extract sqrt to get SNR
                 np.savez(fname_bao_clu,
                         bao_sign=bao_sign_clu)
