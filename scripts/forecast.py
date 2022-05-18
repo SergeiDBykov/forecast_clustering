@@ -1916,7 +1916,7 @@ def make_cobaya_input(datagen: DataGenerator, foldername: str, F: FisherMatrix, 
         filename (str, optional): name of cobaya input file. Defaults to 'info_auto.yaml'.
     """
 
-    path = path2res_forecast + 'mcmc_inference/' + foldername
+    path = path2res_forecast + 'mcmc/' + foldername
     for folder in [path]:
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -1964,7 +1964,7 @@ def make_cobaya_input(datagen: DataGenerator, foldername: str, F: FisherMatrix, 
 
 
         'theory':
-        {'forecast.cobaya_classes.CCLclustering':
+        {'scripts.cobaya_mcmc.CCLclustering':
                 {
                     'type': datagen.type,
                     'f_fail': datagen.f_fail,
@@ -1981,14 +1981,14 @@ def make_cobaya_input(datagen: DataGenerator, foldername: str, F: FisherMatrix, 
                     'use_weighed_bias': datagen.use_weighed_bias,
                     'density_multiplier': datagen.density_multiplier,
                     'remove_ignored_cells': datagen.remove_ignored_cells,
-                    'bin_left_edges_file':  './bin_left_edges.txt',
+                    'bin_left_edges_file':  path+'/bin_left_edges.txt',
                     'transfer_function': datagen._cosmo_fid._config_init_kwargs['transfer_function'],
                     'matter_pk': datagen._cosmo_fid._config_init_kwargs['matter_power_spectrum'],
                     'baryons_pk': datagen._cosmo_fid._config_init_kwargs['baryons_power_spectrum'],
                     'fix_cov': fix_cov, }},
         'likelihood':
-        {'forecast.cobaya_classes.GaussianClLikelihood':
-                {'data_vector_file': './data_vector.txt',
+        {'scripts.cobaya_mcmc.GaussianClLikelihood':
+                {'data_vector_file': path+'/data_vector.txt',
                  'fix_cov': fix_cov, }},
         'sampler':
         {'mcmc':
@@ -1999,7 +1999,7 @@ def make_cobaya_input(datagen: DataGenerator, foldername: str, F: FisherMatrix, 
                     'learn_every': 250,
                     'learn_proposal': True,
                     'measure_speeds': True,
-                    'covmat': './fisher_cov.txt',
+                    'covmat': path+'/fisher_cov.txt',
                  }
          },
         'output': 'chains/chain',

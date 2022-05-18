@@ -1,3 +1,4 @@
 
 results/data/BAO/*
 results/data/cosmo-photoz/*
+notebooks/mcmc_forecast/AGN_optimistic_h_ns_prior/chains
