@@ -66,8 +66,7 @@ k_photoz_agn = 1
 
 
 def analyze_sigma0_f_fail(type, fiducial_params: dict,
-                          sigma_0: float, f_fail: float,
-                          k_photoz_clu: float =1.):
+                          sigma_0: float, f_fail: float,):
     """
     analyze_sigma0_f_fail for a given fiducial_params, sigma_0 and f_fail returns a DataGenerator object from which you can access Cell and covariance matrix objects.
 
@@ -76,7 +75,7 @@ def analyze_sigma0_f_fail(type, fiducial_params: dict,
         fiducial_params (dict): dictionary of invocation parameters for the DataGenerator
         sigma_0 (float): photo-z scatter
         f_fail (float): fraction of catastrophic failures of photozs
-        k_photoz_clu (float, optional): k_photo parameter. Defaults to 1..
+
 
     """
     # k_photoz_clu arg needed for analysis of clusters at very low sigma0, e.g 1% or 0.5%
@@ -91,7 +90,10 @@ def analyze_sigma0_f_fail(type, fiducial_params: dict,
         setname = f'Clusters_{sigma_0}_{f_fail}_{transfer_name}'
         zmin = zmin_clu
         zmax = zmax_clu
-        k_photoz = k_photoz_clu
+        if sigma_0 == 0.005:
+            k_photoz = k_photoz_clu*1.3
+        else:
+            k_photoz = k_photoz_clu
         powspec_pars_dict = powspec_pars_dict_clu
     else:
         raise ValueError('type must be either AGN or Clusters')
@@ -105,8 +107,7 @@ def analyze_sigma0_f_fail(type, fiducial_params: dict,
         zmin, zmax, k=k_photoz, sigma_0=powspec_pars_dict_new['sigma_0'])
     powspec_pars_dict_new['bin_left_edges'] = bin_left_edges
 
-    datagen = DataGenerator(RUN_NAME='Fisher_matrices_experiments',
-                            fiducial_params=fiducial_params, set_name=setname,)
+    datagen = DataGenerator(fiducial_params=fiducial_params, set_name=setname,)
 
     datagen.invoke(
         **powspec_pars_dict_new, plot_cell=False, plot_dndz=False)
