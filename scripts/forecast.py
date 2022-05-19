@@ -2094,7 +2094,7 @@ def analyze_chain(SETNAME,
     Returns:
         Tuple: dataframe with results from all chains, all chains separably, and chain consumer object
     """
-    chains_path = f"{rep_path}/forecast/mcmc_inference/{SETNAME}/chains/"
+    chains_path = f"{rep_path}results/data/mcmc/{SETNAME}/chains/"
 
     os.chdir(chains_path)
     ch_cons = ChainConsumer()
@@ -2164,3 +2164,26 @@ def analyze_chain(SETNAME,
     #walks = ch_cons.plotter.plot_walks(chains=0, convolve=250)
 
     return chain_res, chains_list, ch_cons
+
+
+def load_fisher(datagen_name: str) -> FisherMatrix:
+    """
+    Loads fisher matrix from file.
+    Args:
+        datagen_name (str): name of datagen object
+    Returns:
+        FisherMatrix: fisher matrix object
+    """
+
+    Fname = f"{rep_path}/results/data/mcmc/{datagen_name}/fisher_cov.txt"
+
+    F = np.linalg.inv(np.loadtxt(Fname))
+    par_names = list(np.loadtxt(Fname, dtype=str,
+                                comments=None, max_rows=1)[1:])
+    warnings.warn(
+        f"Parameters of cosmology are default: [0.25, 0.05, 0.7, 0.96, 0.8] ")
+
+    F = FisherMatrix(par=np.array([0.25, 0.05, 0.7, 0.96, 0.8]), par_names=par_names, F=F, name=datagen_name,
+                     function=lambda x: x, J=np.array([1]))
+
+    return F
