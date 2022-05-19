@@ -25,7 +25,7 @@ Necessary python packages: `numpy, scipy, matplotlib, seaborn, pandas, numba, nu
 
 
 - `./notebooks`  
-  the main notebooks for the analysis are stored here. It containt a few folder and separate notebooke to make the forecast. The content of the folder is as follows (roughly in the order of  the paper sections):
+  the main notebooks for the analysis are stored here. It containt a few folder and separate notebooke to make the forecast. The instructions are given in each notebook.  The content of the folder is as follows (roughly in the order of  the paper sections):
     1. `./luminosity_functions/`  contains three notebooks for the luminosity functions, one for AGN, one for clusters, and one for the plotting both distributions in one figure (in section 3 of the paper). Those notebooks demonstrate the use of the classes and functions in `./luminosity_functions.py`, including `dn/dz`, `logN-logS` calculation for AGN and clusters. The instructions are found in the notebooks.
     2. `effective_volume.ipynb` calculates the effective volume of the survey for AGN and Cluster tracers (setion 2 of the paper). It uses  results from luminosity function calculators. 
     3. `./Cell_plot.ipynb` plots the angular power spectrum for AGN and clusters and its derivative for a representative redshift bins (section 4 of the paper. 
