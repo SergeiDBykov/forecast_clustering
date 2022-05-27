@@ -2121,24 +2121,12 @@ def analyze_chain(SETNAME,
         raise Exception('No chains found')
 
     for file in files:
-        # print('################')
-        #print(f' working with {file}')
         f = open(file, 'r')
         line1 = f.readline()
         chain_res = pd.DataFrame(pd.read_csv(f, sep='\s+',  # type: ignore
                                              names=line1.replace('#', ' ').split()))
-        # print('best fit in this file:')
-        # print(chain_res.loc[chain_res['minuslogpost'].idxmin()])
         cols = [c for c in chain_res.columns if not (('minuslogprior' in c) or (
             'minuslogpost' in c) or ('chi2' in c) or ('weight' in c))]
-        #cols = [x.replace('Omega', '\Omega') for x in cols]
-        #cols = [x.replace('sigma', '\sigma') for x in cols]
-        #cols = ['$'+x+'$' for x in cols]
-        # tmp_cols = [cols[1], cols[0], cols[-1]]
-        # _ = [tmp_cols.append(x) for x in cols[2:-1]]
-        # tmp_cols = [cols[1], cols[0], cols[2]]
-        # _ = [tmp_cols.append(x) for x in cols[3:]]
-        # cols = tmp_cols
         chain_res = chain_res[cols]
 
         chain_res = chain_res[cols]
@@ -2159,9 +2147,6 @@ def analyze_chain(SETNAME,
 
     ch_cons_fig = ch_cons.plotter.plot(
         figsize=(figsize, figsize), filename=filename)
-    #summary = ch_cons.plotter.plot_summary()
-
-    #walks = ch_cons.plotter.plot_walks(chains=0, convolve=250)
 
     return chain_res, chains_list, ch_cons
 
