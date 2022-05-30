@@ -65,7 +65,7 @@ rc = {
     "ytick.minor.size": 4,
 
     # 'lines.marker': 'o',
-    'lines.markeredgewidth': 1.5,
+    'lines.markeredgewidth': 0,
     "lines.markersize": 10,
     "lines.markeredgecolor": "k",
     'axes.titlelocation': 'left',
@@ -79,13 +79,18 @@ rc = {
 }
 
 
-def set_mpl(palette_name='pastel'):
-    sns.set_palette(palette_name, color_codes=True)
-    print(f'set palette to {palette_name}')
-    matplotlib.rcParams.update(rc)
-    print("set matplotlib rc")
 
-set_mpl('pastel')
+def set_mpl(palette = 'shap', desat = 0.8):
+    matplotlib.rcParams.update(rc)
+    if palette == 'shap':
+        #colors from shap package: https://github.com/slundberg/shap
+        cp = sns.color_palette( ["#1E88E5", "#ff0d57", "#13B755", "#7C52FF", "#FFC000", "#00AEEF"])
+        sns.set_palette(cp, color_codes = True, desat = desat)
+    else:
+        sns.set_palette(palette, color_codes = True, desat = desat)
+
+set_mpl()
+
 
 
 
