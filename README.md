@@ -42,6 +42,7 @@ Necessary python packages: `numpy, scipy, matplotlib, seaborn, pandas, numba, nu
     * `3_cosmo_fisher_plots.ipynb`  is a notebook which plots the Fisher matrices with certain  photometric redshift properties, for AGN and clusters, and with priors if needed;
     * `4_cosmo_photoz.ipynb` is a notebook which plots the Fisher matrices' Figure of Merit as a function of  photometric redshift properties, for AGN and clusters;
     * `5_cosmo_tables.ipynb` is a notebook which tabulates the Fisher matrices' Figure of Merit and parameter errors as a function of  photometric redshift properties, for AGN and clusters.
+    * `6_survey_pars.ipynb` is a notebook with forecast for different AGN survey parameters.
   * `./mcmc_forecast` contains notebooks in which Monte-Carlo Markov chain are run with `cobaya` cosmological sampler. 
     * `test_cobaya_func.ipynb` is a notebook in which the `cobaya` sampler is tested versus the actual `DataGenerator` object from `scripts.forecast.py`.
     * `AGN_optimistic_h_ns_prior.ipynb` contains the instructins to run mcmc for a Sample of AGN. Data from mcmc is stored in `results/data/mcmc`
