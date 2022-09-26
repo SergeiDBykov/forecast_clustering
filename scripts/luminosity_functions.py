@@ -45,6 +45,8 @@ def differential_comoving_volume(cosmo: ccl.Cosmology, z: np.ndarray) -> np.ndar
     return ccl_diff
 
 
+
+
 def calc_po_flux(elo: float, ehi: float, gamma: float) -> float:
     """
     calc_po_flux: integrates a powerlaw spectrum (photon index gamma) with unit normalization
@@ -286,6 +288,17 @@ def ldde_aird_hard(L210: np.ndarray, z: np.ndarray):
                 z_cutoff_0=1.27,
                 L_alpha=10**(44.7), alpha=0.11)
 
+
+def fdpl_aird15_soft(L210, z):
+    L = L210
+    ksi = np.log10(1+z)
+
+    log_K_z = -5.74+4.88*ksi-7.2*ksi**2
+    log_Lstar = 43.81-0.27*ksi+6.82*ksi**2-6.94*ksi**3
+    log_gamma1 = -0.18-0.55*ksi
+    gamma2 = 2.43
+
+    return 10**(log_K_z)*((L/10**log_Lstar)**(10**log_gamma1) + (L/10**log_Lstar)**gamma2)**(-1.)
 
 
 
