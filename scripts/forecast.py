@@ -615,7 +615,7 @@ def cov_Cell(cls_rebin: np.ndarray,
              n_logbin: np.ndarray,
              show_progressbar: bool = True) -> np.ndarray:
     """
-    cov_Cell calculates a covariance matrix for a Cell arary including cross-correlations between bins
+    cov_Cell calculates a covariance matrix for a Cell array including cross-correlations between bins
 
     Formula:
 
@@ -1020,16 +1020,13 @@ class DataGenerator():
         self.bin_centers = (bin_left_edges[1:] + bin_left_edges[:-1]) / 2.
         return None
 
-    def make_tracers(self, has_rsd: bool,
-                     use_weighed_bias: bool) -> None:
+    def make_tracers(self, has_rsd: bool,) -> None:
         """
         make_tracers make a tracer object for each bin.
 
         Args:
             has_rsd (bool): Whether to include RSD.
             bias_z (Union[float, np.ndarray]): bias as function of redshift. If float, interpreted as a bias of a halo of that mass. If array, interpreted as a values for bias a given zarr
-            # Normally one would weight with n(z)*chi(z), but so far I use n(z) weight.
-            use_weighed_bias (bool): Whether to replace b(z) with its n(z) weighted value in each bin.
 
         """
         zarrs = self.zarrs
@@ -1044,18 +1041,6 @@ class DataGenerator():
             self.bias_arr = bias_arr
         bias_arrs = [bias_arr for _ in zarrs]
         self.bias_arrs = bias_arrs
-
-        nz_weighted_bias = np.array([np.average(
-            bz_arr, weights=dndz_arr) for bz_arr, dndz_arr in zip(bias_arrs, dndz_arrs)])
-
-        self.weighed_bias_arrs = nz_weighted_bias
-        self.use_weighed_bias = use_weighed_bias
-        if use_weighed_bias:
-            # print('USING NZ WEIGHED BIASES INSTEAD OF SINGLE HALO MASS')
-            bias_arrs = nz_weighted_bias
-            self.bias_arrs = nz_weighted_bias
-        else:
-            pass
 
         tracers_obj = DensityTracers(
             zarrs, dndz_arrs, bias_list=list(bias_arrs), set_name=self.set_name)
@@ -1195,12 +1180,6 @@ class DataGenerator():
         par_names = ['Omega_c', 'Omega_b', 'h',  'n_s', 'sigma_8']
         # it is important to have sigma8 as the last cosmological parameter. This is because I want to calculate derivatives with respect to sigma8 analytically.
 
-        if self.use_weighed_bias:
-            _ = [par_vector.append(bias) for bias in self.weighed_bias_arrs]
-            for i in range(self.n_bins):
-                par_names.append(f'bias_{i+1}')
-        else:
-            pass
         par_vector = np.array(par_vector)
         self.par_vector = par_vector
         self.par_names = par_names
@@ -1229,14 +1208,9 @@ class DataGenerator():
         bias_idx = 5
         Oc, Ob, h, ns, s8 = params[0:bias_idx]
         # print('#### pars:', Oc, Ob, h, ns, s8)
-        if self.use_weighed_bias:
-            if len(params) == bias_idx:
+        if len(params) != bias_idx:
                 raise ValueError(
-                    'If use_weighed_bias is True, you must provide all bias parameters.')
-        if not self.use_weighed_bias:
-            if len(params) != bias_idx:
-                raise ValueError(
-                    f'If use_weighed_bias is False, you must provide only cosmological parameters, got {params = }')
+                    f'You must provide only cosmological parameters, got {params = }')
 
         cosmo_ccl = ccl.Cosmology(
             Omega_c=Oc, Omega_b=Ob, h=h,
@@ -1244,12 +1218,8 @@ class DataGenerator():
             n_s=ns,
             transfer_function=self.fiducial_params['transfer_function'],
             matter_power_spectrum=self.fiducial_params['matter_power_spectrum'])
-        if self.use_weighed_bias:
-            bias_pars = params[bias_idx:bias_idx+self.n_bins]
-            bias_arrs = [np.ones_like(self.zarrs[0])
-                         * bias for bias in bias_pars]
-        else:
-            bias_arrs = self.bias_arrs
+        
+        bias_arrs = self.bias_arrs
 
         tracers = DensityTracers(
             self.zarrs, self.dndz_arrs, list(bias_arrs))
@@ -1380,36 +1350,7 @@ class DataGenerator():
             dCelldsigma8 = np.atleast_2d(2*cls_rebin_lkl/params[4])
             J_cosmo = np.vstack((J_cosmo.T, dCelldsigma8)).T
 
-            if self.use_weighed_bias:
-                n_bins = self.n_bins
-                n_ell = self.ell_rebin.shape[0]
-                n_cls = self.n_cls
-                cls_rebin = self.cls_rebin
-
-                cls_rebin_deriv_mine = np.zeros(
-                    (n_cls, n_ell, len(params[5:])))
-
-                for bias_idx in range(len(params[5:])):
-                    for idx in range(n_cls):
-                        if idx in ignored_idx:
-                            tmp = np.zeros_like(cls_rebin[0]) - 666.
-                        else:
-                            i, j = cl_get_ij_from_idx(idx, n_bins)
-                            if i != bias_idx and j != bias_idx:
-                                tmp = np.zeros_like(cls_rebin[0])
-                            elif i != j and (i == bias_idx or j == bias_idx):
-                                tmp = cls_rebin[idx]/params[bias_idx+5]
-                            elif i == j and (i == bias_idx or j == bias_idx):
-                                tmp = 2*cls_rebin[idx]/params[bias_idx+5]
-                            else:
-                                tmp = np.zeros_like(cls_rebin[0])
-
-                        cls_rebin_deriv_mine[idx, :, bias_idx] = tmp
-                J_bias = cls_rebin_deriv_mine.reshape((-1, len(params[5:])))
-                J_bias = J_bias[not np.all(J_bias == -666, axis=1)]
-                J = np.hstack((J_cosmo, J_bias))
-            else:
-                J = J_cosmo
+            J = J_cosmo
             J = np.array(J)
             # np.einsum('ik,ij,jl -> kl', J, data_cov_inv, J)
             F = np.dot(J.T, np.dot(data_cov_inv, J))
@@ -1452,16 +1393,8 @@ class DataGenerator():
                                              J_fiducial, [3, 4], axis=1),
                                          ell_rebin=self.ell_rebin)
 
-        bias_slice = np.s_[5:]
-        F_no_biases = FisherMatrix(par=del_par(par_vector, bias_slice),
-                                   par_names=par_names[0:5],
-                                   F=del_par(F_fiducial, bias_slice),
-                                   name=fishername+'_no_biases',
-                                   function=self.Cell_mean,
-                                   J=np.delete(J_fiducial, bias_slice, axis=1),
-                                   ell_rebin=self.ell_rebin)
 
-        return [F_all, F_no_sigma8, F_no_sigma8_no_ns, F_no_biases]
+        return [F_all, F_no_sigma8, F_no_sigma8_no_ns]
 
     def invoke(self,
                bin_left_edges: np.ndarray,
@@ -1474,7 +1407,6 @@ class DataGenerator():
                delta_i: int = -1,
                use_camb: bool = True,
                camb_llimber: int = 100,
-               use_weighed_bias: bool=False,
                density_multiplier: float = 1,
                plot_dndz: bool = True,
                plot_cell: bool = True,
@@ -1499,7 +1431,6 @@ class DataGenerator():
             delta_i (int, optional): maximum bin separation (by index) after which cross-correlation is supposed to be zero. if 0, calculates only auto-correlation, if 1, calculates auto-correlation and cross-correlation with adjacent bins. If negative, calculates all correlations Defaults to -1. Ignored spectra would result in zero blocks in the covariance matrix (see Doux 2018).. Defaults to -1.
             use_camb (bool, optional): Whether to use CAMB.. Defaults to False.
             camb_llimber (int, optional): l_limber for CAMB. Defaults to 100.
-            use_weighed_bias (bool, optional): whether to use constant b(z) for a bin, with the real b(z) weighted with dndz of a bin. Defaults to False.
             density_multiplier (float, optional): density multiplier for the xlf. Defaults to 1.
             plot_dndz (bool, optional): whether to plot dndz of the data generator. Defaults to True.
             plot_cell (bool, optional): whether to plot Cell of the data generator. Defaults to True.
@@ -1520,8 +1451,7 @@ class DataGenerator():
                       xlf=xlf, slim=slim,
                       density_multiplier=density_multiplier)
 
-        self.make_tracers(has_rsd=has_rsd,
-                          use_weighed_bias=use_weighed_bias)
+        self.make_tracers(has_rsd=has_rsd)
         if plot_dndz:
             self.plot_dndzs(lw=3, alpha=0.7)
         if calc_cl:
@@ -1978,7 +1908,6 @@ def make_cobaya_input(datagen: DataGenerator, foldername: str, F: FisherMatrix, 
                     'use_camb': datagen.use_camb,
                     'camb_llimber': datagen.camb_llimber,
                     'has_rsd': datagen.has_rsd,
-                    'use_weighed_bias': datagen.use_weighed_bias,
                     'density_multiplier': datagen.density_multiplier,
                     'remove_ignored_cells': datagen.remove_ignored_cells,
                     'bin_left_edges_file':  path+'/bin_left_edges.txt',
@@ -2004,22 +1933,6 @@ def make_cobaya_input(datagen: DataGenerator, foldername: str, F: FisherMatrix, 
          },
         'output': 'chains/chain',
         'debug': False}
-
-    # for i, bias in enumerate(datagen.weighed_bias_arrs, 1):
-    #     print(i, bias)
-    #     minbi = float(bias*0.9)
-    #     maxbi = float(bias*1.1)
-    #     # float as simpler than numpy stuff from bias, and can be saved in yaml
-
-    #     info_auto['params'][f'bias_{i}'] = {'prior': {'min': 0.7, 'max': 10.0}, 'ref': {
-    #         'min': minbi, 'max': maxbi}, 'drop': True, 'proposal': 0.01}
-
-    # bias_str = ', '.join(f'bias_{i}' for i in range(
-    #     1, len(datagen.weighed_bias_arrs)+1))
-    # bias_str = f'lambda {bias_str}: [{bias_str}]'
-
-   # info_auto['params']['bias_vector'] = {
-   #     'value': bias_str, 'derived': False}
 
     with open(f'{path}/{filename}', 'w') as file:
         yaml.dump(info_auto, file, sort_keys=False)

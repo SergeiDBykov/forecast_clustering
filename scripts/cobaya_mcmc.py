@@ -29,7 +29,6 @@ class CCLclustering(Theory):
     use_camb: bool = True
     has_rsd: bool = False
     camb_llimber: int = 110
-    use_weighed_bias: bool = False
     density_multiplier: float = 1.
     remove_ignored_cells: bool = True
     type: str = 'AGN'
@@ -60,7 +59,6 @@ class CCLclustering(Theory):
             'log_bins': self.log_bins,
             'fsky': self.fsky,
             'has_rsd': self.has_rsd,
-            'use_weighed_bias': self.use_weighed_bias,
             'density_multiplier': self.density_multiplier,
             'camb_llimber': self.camb_llimber,
             'xlf': xlf,

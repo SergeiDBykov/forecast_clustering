@@ -28,7 +28,6 @@ powspec_pars_dict = {
     'fsky': 0.7,
     'has_rsd': False,
     'delta_i': -1,
-    'use_weighed_bias': False,
     'use_camb': True,
     'camb_llimber': 110,
     'remove_ignored_cells': False,
@@ -189,8 +188,7 @@ def make_datagen(fiducial_params, powspec_pars_dict):
                      slim=powspec_pars_dict['slim'],
                      density_multiplier=powspec_pars_dict['density_multiplier'],)
 
-    datagen.make_tracers(has_rsd=powspec_pars_dict['has_rsd'],
-                         use_weighed_bias=powspec_pars_dict['use_weighed_bias'],)
+    datagen.make_tracers(has_rsd=powspec_pars_dict['has_rsd'])
 
     datagen.gen_Cell(
         l_min=powspec_pars_dict['l_min'],
@@ -403,11 +401,6 @@ ccl_calc = powspec_pars_dict.copy()
 ccl_calc['use_camb'] = False
 cell_suite(fiducial_params=fiducial_params,
            powspec_pars_dict=ccl_calc,)
-
-full_bias = powspec_pars_dict.copy()
-full_bias['use_weighed_bias'] = not powspec_pars_dict['use_weighed_bias']
-cell_suite(fiducial_params=fiducial_params,
-           powspec_pars_dict=full_bias,)
 
 
 # test 2: change cosmo
