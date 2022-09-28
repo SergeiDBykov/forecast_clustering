@@ -1593,7 +1593,9 @@ def compare_fisher_matrices(Fs: list[FisherMatrix],
                             title: str='', filename: Optional[str]=None,  
                             names_list: Optional[list[str]]=None, 
                             factor: float=1., fsky: Optional[float]=None, 
-                            figsize: float=10, plot_table: bool=True, precision: int=3,  **config_kw):
+                            figsize: float=10, plot_table: bool=True, precision: int=3,
+                            table_row_labels: Optional[list] = None,
+                            **config_kw):
     """
     compare_fisher_matrices plots and compares Fisher matrices.
 
@@ -1607,6 +1609,7 @@ def compare_fisher_matrices(Fs: list[FisherMatrix],
         figsize (float, optional): plot arg. Defaults to 10.
         plot_table (bool, optional): whether to plot a parameters table on the plot. Defaults to True.
         precision (int, optional): precision for table. Defaults to 3.
+        table_row_labels (Optional[list], optional): row labels for table. Defaults to None.
 
     Returns:
         figure and table
@@ -1656,7 +1659,11 @@ def compare_fisher_matrices(Fs: list[FisherMatrix],
         fom = '{:.2f}'.format(fom)
         snrs.append(fom)
         table = pd.concat((table, pd.DataFrame([snrs], columns=par_names_fom))) #table.append(pd.DataFrame([snrs], columns=par_names_fom))
+    
+    #if table_row_labels is None:
     table.index = [F.name for F in Fs]
+    #else:
+    #    table.index = table_row_labels
     # if not agn_clu_comb:
     # else:
     #    table.index = ['Clusters', 'AGN', 'Comb.']
@@ -1665,7 +1672,8 @@ def compare_fisher_matrices(Fs: list[FisherMatrix],
         tab = fig_chains.axes[8].table(cellText=cell_text,
                                        colLabels=['$\delta$'+x+'/' +
                                                   x for x in table.columns[0:-1]]+['FoM'],
-                                       rowLabels=list(range(1, len(Fs)+1)),
+                                       #rowLabels=list(range(1, len(Fs)+1)),
+                                       rowLabels=table_row_labels,
                                        bbox=[-0.25, 0, 2.5, 1],
                                        colWidths=[0.25]*len(table.columns),
                                        rowColours=[x.get_color() for x in fig_chains.axes[0].get_lines()])

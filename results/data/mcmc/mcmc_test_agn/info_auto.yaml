@@ -55,7 +55,6 @@ theory:
     use_camb: true
     camb_llimber: 110
     has_rsd: true
-    use_weighed_bias: false
     density_multiplier: 1.3
     remove_ignored_cells: true
     bin_left_edges_file: /Users/sdbykov/work/forecast_clustering/results/data/mcmc/mcmc_test_agn/bin_left_edges.txt
