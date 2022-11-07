@@ -47,3 +47,5 @@ Necessary python packages: `numpy, scipy, matplotlib, seaborn, pandas, numba, nu
     * `test_cobaya_func.ipynb` is a notebook in which the `cobaya` sampler is tested versus the actual `DataGenerator` object from `scripts.forecast.py`.
     * `AGN_optimistic_h_ns_prior.ipynb` contains the instructins to run mcmc for a Sample of AGN. Data from mcmc is stored in `results/data/mcmc`
   
+
+If you have any questions, please contact me at email indicated in the paper.
