@@ -3,3 +3,6 @@ results/data/BAO/*
 results/data/cosmo-photoz/*
 results/data/mcmc/AGN_optimistic_h_ns_prior/
 results/data/mcmc/mcmc_test_agn/info_auto.yaml
+notebooks/small_scale_clustering
+results/data/small_scale_clustering
+notebooks/small_scale_clustering

@@ -47,10 +47,3 @@ Necessary python packages: `numpy, scipy, matplotlib, seaborn, pandas, numba, nu
     * `test_cobaya_func.ipynb` is a notebook in which the `cobaya` sampler is tested versus the actual `DataGenerator` object from `scripts.forecast.py`.
     * `AGN_optimistic_h_ns_prior.ipynb` contains the instructins to run mcmc for a Sample of AGN. Data from mcmc is stored in `results/data/mcmc`
   
-  * `./small_scale_clustering` contains notebooks where the small scale clustering is predicted. 
-    * `acf_core.py` is a script with necessary functions for the calculation of the ACF - angular correlation function, as well as catalog construction from healpix oversensity maps;
-    * `1_tile_sky_LH.ipynb` is a notebook with small-scale clustering predictions for AGN in `4x5` deg fields with the limiting flux `2e-15` - Lockman Hole survey. Redshift range is `1 < z < 1.5`.
-    * `2_tile_sky_LH_noz.ipynb` is the same but for redhsift range  `0.1 < z < 3`.
-    * `3_tile_sky_eFEDS.ipynb` is a notebook with small-scale clustering predictions for AGN in `20x7` deg fields with the limiting flux `7e-15` - eFEDS field survey. Redshift range is `1 < z < 1.5`.
-    * `4_tile_sky_eFEDS_noz.ipynb` is the same but for redhsift range  `0.1 < z < 3`.
-    * `5_compile_results.ipynb` plots the results of the above notebooks: ACF+errors. 
