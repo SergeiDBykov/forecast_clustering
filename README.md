@@ -4,7 +4,7 @@
 This are  scripts and notebooks which are used to calculate the  results for the cosmological forecast of **eROSITA All-sky survey** in  X-ray. 
 
 The  analysis results I used in my [paper]().
-Necessary python packages: `numpy, scipy, matplotlib, seaborn, pandas, numba, numdifftools, tqdm, chainconsumer`; cosmology packages in python: `pyccl, camb, jax_cosmo, cobaya, treecorr`.
+Necessary python packages: `numpy, scipy, matplotlib, seaborn, pandas, numba, numdifftools, tqdm, chainconsumer`; cosmology packages in python: `pyccl, camb, jax_cosmo, cobaya`.
 
 **This  branch is for the code after adressing referee's comments (i.e. before second submission) **
 
