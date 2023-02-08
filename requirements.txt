@@ -1,0 +1,16 @@
+astropy==5.0.4
+camb==1.3.5
+ChainConsumer==0.33.0
+cobaya==3.2.1
+cycler==0.11.0
+jax_cosmo==0.1rc9
+matplotlib==3.5.1
+numba==0.56.3
+numdifftools==0.9.40
+numpy==1.23.1
+pandas==1.4.3
+pyccl==2.3.0
+PyYAML==6.0
+scipy==1.8.0
+seaborn==0.11.2
+tqdm==4.64.0
